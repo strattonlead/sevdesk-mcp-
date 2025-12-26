@@ -3,7 +3,7 @@ namespace SevDesk.Mcp.Configuration;
 public class AppConfig
 {
     public required string SevDeskApiToken { get; set; }
-    public string SevDeskBaseUrl { get; set; } = "https://my.sevdesk.de/api/v1";
+    public string SevDeskBaseUrl { get; set; } = "https://my.sevdesk.de/api/v1/";
     public string McpMode { get; set; } = "stdio";
     public int McpHttpPort { get; set; } = 8080;
     public bool AllowWriteTools { get; set; } = false;
@@ -21,10 +21,16 @@ public class AppConfig
             throw new InvalidOperationException("SEVDESK_API_TOKEN environment variable is required.");
         }
 
+        var baseUrl = Environment.GetEnvironmentVariable("SEVDESK_BASE_URL");
+        if (!string.IsNullOrWhiteSpace(baseUrl) && !baseUrl.EndsWith('/'))
+        {
+            baseUrl += "/";
+        }
+
         var config = new AppConfig
         {
             SevDeskApiToken = token,
-            SevDeskBaseUrl = Environment.GetEnvironmentVariable("SEVDESK_BASE_URL") ?? "https://my.sevdesk.de/api/v1",
+            SevDeskBaseUrl = baseUrl ?? "https://my.sevdesk.de/api/v1/",
             McpMode = Environment.GetEnvironmentVariable("MCP_MODE") ?? "stdio",
             AllowWriteTools = bool.TryParse(Environment.GetEnvironmentVariable("ALLOW_WRITE_TOOLS"), out var allowWrite) && allowWrite,
             LogLevel = Environment.GetEnvironmentVariable("LOG_LEVEL") ?? "Information",

@@ -155,26 +155,26 @@ public class SevDeskClient
     public async Task<string?> GetDocumentDownloadLinkAsync(string documentId)
     {
         // Not all documents have direct download links in the object.
-        // Some might require a separate call or return a path.
-        // Assuming we check the document object first or call a specific download endpoint if available.
-        // SevDesk API v1 doesn't have a direct "get link" endpoint publicly documented well, often it's "download=true" on get?
-        // Or using the 'downloadPath' from the document object.
+        // SevDesk API v1: Document/{id} returns object which contains 'downloadPath' property.
 
-        var doc = await GetAsync<SingleResponse<DocumentLink>>($"Document/{documentId}"); // Checking if full object has it or separate.
-        // Actually, let's just fetch the document details, usually it contains `downloadPath` or similar.
-
-        // Let's try to assume we get a fresh document object
-        var url = $"Document/{documentId}";
-        using var response = await _httpClient.GetAsync(url);
-        if (!response.IsSuccessStatusCode) return null;
-
-        var json = await response.Content.ReadAsStringAsync();
-        using var docJson = JsonDocument.Parse(json);
-        if (docJson.RootElement.TryGetProperty("objects", out var objects) && objects.GetArrayLength() > 0)
+        try
         {
-             var obj = objects[0];
-             // Check for downloadPath (standard in some versions)
-             if (obj.TryGetProperty("downloadPath", out var dp)) return dp.GetString();
+            var url = $"Document/{documentId}";
+            using var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return null;
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var docJson = JsonDocument.Parse(json);
+            if (docJson.RootElement.TryGetProperty("objects", out var objects) && objects.ValueKind == JsonValueKind.Array && objects.GetArrayLength() > 0)
+            {
+                 var obj = objects[0];
+                 // Check for downloadPath (standard in some versions)
+                 if (obj.TryGetProperty("downloadPath", out var dp)) return dp.GetString();
+            }
+        }
+        catch
+        {
+            // Ignore errors, return null
         }
         return null;
     }
@@ -228,7 +228,12 @@ public class SevDeskClient
                  quantity = item.Quantity,
                  price = item.Price,
                  name = item.Name,
-                 unity = new { id = 1, objectName = "Unity" }, // "Stück" often id 1.
+                 // "Stück" often id 1. If user provided a Unity string, we'd need to lookup the Unity ID.
+                 // For safety and MVP, we default to id 1 but ideally we should search for Unity by name.
+                 // However, "unity" in args was passed as string name? Or ID?
+                 // The ToolHandler parses it as string.
+                 // If the string is a number, treat as ID, otherwise default to 1 for now to avoid complexity without lookup.
+                 unity = new { id = int.TryParse(item.Unity, out var uid) ? uid : 1, objectName = "Unity" },
                  taxRate = item.TaxRate,
                  objectName = "InvoicePos"
              };

@@ -54,7 +54,7 @@ You can read resources directly using URIs:
 
 ### Prerequisites
 
-- .NET 8 SDK
+- .NET 10 SDK
 
 ### Build
 
